@@ -1,0 +1,989 @@
+openapi: 3.0.3
+info:
+  title: LectorVision JSON EdgeLPR API
+  description: |-
+    LectorVision JSON EdgeLPR Application Programming Interface (JSON EdgeLPR API) is used by LectorVision and authorized third party vendors to integrate LectorVision Traffic Eye license plate recognition (LPR) systems with external control centers.
+  
+    Traffic Eye license plate recognition systems using EdgeLpr and Traffic Guard software modules will send the information associated with each detected vehicle license plate together with different alarms associated with road traffic.
+    
+    Communication is based on REST-type Web Services with encapsulation of data in JSON format, in the Control Center there will be a web service HTTPS protocol over TLS, the LPR system will connect to the server and download implicitly electronic certificate of a way that guarantees the security and integrity of the communication.
+  
+    The functionality that follows defines the methods to consume:
+    - Sending recognition of registration detected.
+    - Sending of status message "Status".
+    - Sending traffic alerts (DAI).
+
+    TrafficEye equipment with EdgeLpr software will send asynchronously the data of the vehicles and traffic alarms that are detected, periodically the status of all the analysis engines and associated cameras will be communicated.
+  
+    EdgeLpr software includes a configurable off-line traffic management module that allows sending to the control center all those transits that have not been sent, to ensure the definition of off-line traffic, the control center server must provide an acknowledgment of receipt for each transit or group of transits sent, so that all unmarked transit by acknowledgment of receipt will become an off-line transit
+ 
+    Similar to the Control Center, EdgeLpr systems will have a REST-type web service to expose the following functionality:
+    - Request transit history: The control center can request a set of transit data, passing as parameters a series of determined optional filters.
+    - Request for images associated with traffic: The control center may request images associated with a traffic as long as they are within the number of days of backup that the EdgeLpr system manages.
+    - Request status of the license plate recognition engines as well as the status of the associated cameras.
+    - Request exception list load/update: The control center can request load or update the internal camera exception list.
+    - Request working mode change: the control center can request to change camera working mode
+  version: 0.0.1
+  contact:
+    name: LectorVision
+    url: https://www.lectorvision.com/
+    email: info@lectorvision.com
+  license:
+    name: Copyright (C) 2024 by LectorVision
+servers:
+  - url: http://localhost:7999/api/camera
+    description: Local deployment server
+tags:
+  - name: LPR API
+paths:
+  /status:
+    get:
+      tags:
+        - LPR API
+      summary: Update status of a connected LPR device
+      description: |-
+        This method is used to request a status update for a connected LPR device.
+      operationId: LPRupdateStatus
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+    post:
+      tags:
+        - LPR API
+      summary: Update status of a connected LPR device
+      description: |-
+        This method of operation is used to establish a “heartbeat” between LPR system and control center. In case of no '200 OK' response, LPR will enter in offline mode.
+      operationId: LPRstatus
+      requestBody:
+        description: LPR data detected in a lane during vehicle passage
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Status'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+  
+  /detection:
+    post:
+      tags:
+        - LPR API
+      summary: Vehicle detected
+      description: >-
+        Each vehicle detected by the TrafficEye system will generate a series of
+        information related to it.
+      operationId: lprdata
+      requestBody:
+        description: LPR data detected in a lane during vehicle passage
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Transit'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+  
+  /v2/detection:
+    post:
+      tags:
+        - LPR API
+      summary: Vehicle detected v2 (default)
+      description: >-
+        Each vehicle detected by the TrafficEye system will generate a series of
+        information related to it.
+      operationId: lprdatav2
+      requestBody:
+        description: LPR data detected in a lane during vehicle passage
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/TransitV2'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+  
+  /request_info:
+    post:
+      tags:
+        - LPR API
+      summary: Request a group of transits
+      description: |-
+        This method is used to request a group of transits.
+      operationId: RequestInfo
+      requestBody:
+        content:
+          ByLongIDTransit:
+            schema:
+              $ref: '#/components/schemas/ByLongIDTransits'
+          ByTimeStamp:
+            schema:
+              $ref: '#/components/schemas/ByTimeStamp'
+          ByPlate:
+            schema:
+              $ref: '#/components/schemas/ByPlate'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transit'
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+  
+  /request_image:
+    summary: request transit images
+    post:
+      tags:
+        - LPR API
+      summary: Request transit images
+      description: |-
+        This method is used to request more transit images.
+      operationId: RequestImages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ByLongIDTransit'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransitImages'
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+  
+  /SWtrigger:
+    post:
+      tags:
+        - LPR API
+      summary: Request SW trigger
+      description: |-
+        This method is used to request a SW trigger.
+      operationId: RequestSWtrigger
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SWtrigger'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SWtriggerReply'
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+  
+  /output:
+    post:
+      tags:
+        - LPR API
+      summary: Request LPR digital output change
+      description: ''
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutputChange'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Bad request
+        '5XX':
+          description: Internal Server Error
+
+components:
+  schemas:
+    Status:
+      type: object
+      properties:
+        IdDevice:
+          type: integer
+          example: 80
+        Name:
+          type: string
+          example: DEVICE NAME
+        Model:
+          type: string
+          example: T.E. SmartSensor
+        SerialNumber:
+          type: string
+          example: AK03400.00003
+        InstallationID:
+          type: string
+          example: A1 PK18.600D
+        TimeStamp:
+          type: string
+          example: 2024/10/21 13:57:46.585
+        CameraStatusOK:
+          type: array
+          items:
+            type: integer
+            example:
+              - 0
+              - 1
+        CameraStatusFailed:
+          type: array
+          items:
+            type: integer
+            enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
+              - 5
+              - 6
+              - 7
+            description: |
+              dictionary:
+                * 0 -> "Sensor"
+                * 1 -> "Optics"
+                * 2 -> "RTC"
+                * 3 -> "FPGA"
+                * 4 -> "FlashCard"
+                * 5 -> "Ethernet"
+                * 6 -> "IP"
+                * 7 -> "Vandalism"
+        OCRversion:
+          type: string
+          example: 03.8.5
+        commmoduleVersion:
+          type: string
+          example: 11.4.0
+        libframecopyVersion:
+          type: string
+          example: 11.1.0
+        libcommVersion:
+          type: string
+          example: 0.41.8
+        libCEMversion:
+          type: string
+          example: 0.9.0
+        libdopplerVersion:
+          type: string
+          example: 1.1.1
+      xml:
+        name: status
+    
+    Transit:
+      required:
+        - IdTransit
+        - LongIdTransit
+      type: object
+      properties:
+        IdDevice:
+          type: integer
+          example: 80
+        Name:
+          type: string
+          example: DEVICE NAME
+        SerialNumber:
+          type: string
+          example: AK03400.00003
+        InstallationID:
+          type: string
+          example: A1 PK18.600D
+        LocationType:
+          type: string
+          example: I
+        Street:
+          type: string
+        Cross:
+          type: string
+        City:
+          type: string
+        Road:
+          type: string
+        PK:
+          type: string
+        Latitude:
+          type: string
+          example: '40.4165'
+        Longitude:
+          type: string
+          example: '-3.70256'
+        IdTransit:
+          type: string
+          example: '002_1_201808271407595131561924806'
+        LongIdTransit:
+          type: integer
+          format: int64
+          example: 12312312
+        TriggerID:
+          type: integer
+          format: int64
+          example: 12312312
+        TimeStamp:
+          type: string
+          example: 2024/10/21 13:57:46.585
+        Protocol:
+          type: string
+          example: JSON
+        Camera:
+          type: integer
+          example: 1
+        LaneName:
+          type: string
+          example: Carril 1
+        LaneNumber:
+          type: integer
+          example: 1
+        Plate:
+          type: string
+          example: 1234BBB
+        PlateCoord:
+          type: array
+          description: |
+            coordinates that define the plate rectangle, the first two values being the x and y components of the first point, and the last two values being the height and width of the rectangle
+          items:
+            type: integer
+            example:
+              - 811
+              - 2048
+              - 917
+              - 2475
+        Country:
+          type: integer
+          example: 34
+          description: international telephone prefix code
+        Fiability:
+          type: integer
+          example: 99
+        CharFiability:
+          type: array
+          items:
+            type: integer
+            example:
+              - 99
+              - 99
+              - 99
+              - 99
+              - 99
+              - 99
+              - 99
+        Size:
+          type: integer
+          example: 20
+        Direction:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+          description: |
+            dictionary:
+              * 0 -> "undefined"
+              * 1 -> "approaching"
+              * 3 -> "moving away"
+        VehicleType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+          description: |
+            dictionary:
+              * 0 -> "undefined"
+              * 1 -> "car"
+              * 2 -> "motorcycle"
+              * 3 -> "truck"
+              * 4 -> "van"
+              * 5 -> "bus"
+        VehicleFiab:
+          type: integer
+          example: 99
+        Make:
+          type: string
+          example: Audi
+        Model:
+          type: string
+          example: A3
+        ColorInt:
+          type: integer
+          example: 0
+        Color:
+          type: string
+          example: Black
+        Speed:
+          type: integer
+          example: 100
+        Acceleration:
+          type: number
+          example: 10.5
+        Images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Images'
+      xml:
+        name: transit
+    
+    TransitV2:
+      required:
+        - IdTransit
+        - LongIdTransit
+      type: object
+      properties:
+        IdDevice:
+          type: integer
+          example: 80
+        Name:
+          type: string
+          example: DEVICE NAME
+        SerialNumber:
+          type: string
+          example: AK03400.00003
+        InstallationID:
+          type: string
+          example: A1 PK18.600D
+        LocationType:
+          type: string
+          example: I
+        Street:
+          type: string
+        Cross:
+          type: string
+        City:
+          type: string
+        Road:
+          type: string
+        PK:
+          type: string
+        Latitude:
+          type: string
+          example: '40.4165'
+        Longitude:
+          type: string
+          example: '-3.70256'
+        TicketType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+            - 10
+          description: |
+            dictionary:
+              * 0 -> "No ticket"
+              * 1 -> "Kamikaze"
+              * 2 -> "Speeding"
+              * 3 -> "RedLight"
+              * 4 -> "Stop enforcement"
+              * 5 -> "Lane enforcement"
+              * 6 -> "BlackList"
+              * 7 -> "Not in whiteList"
+              * 8 -> "VehicleType lane enforcement"
+              * 9 -> "Forbidden turn"
+              * 10 -> "Traffic obstruction"
+              
+        IdTransit:
+          type: string
+          example: '002_1_201808271407595131561924806'
+        LongIdTransit:
+          type: integer
+          format: int64
+          example: 12312312
+        TriggerID:
+          type: integer
+          format: int64
+          example: 12312312
+        TimeStamp:
+          type: string
+          example: 2024/10/21 13:57:46.585
+        Protocol:
+          type: string
+          example: JSON
+        Camera:
+          type: integer
+          example: 1
+        LaneName:
+          type: string
+          example: Carril 1
+        LaneNumber:
+          type: integer
+          example: 1
+        Plate:
+          type: string
+          example: 1234BBB
+        PlateCoord:
+          type: array
+          items:
+            type: integer
+            example:
+              - 811
+              - 2048
+              - 917
+              - 2475
+        Country:
+          type: integer
+          example: 724
+          description: UNE-EN ISO 3166-1 numeric code
+        Country_Telephone:
+          type: integer
+          example: 34
+        Region:
+          type: integer
+          example: 0
+        Fiability:
+          type: integer
+          example: 99
+        FiabilityArray:
+          type: array
+          items:
+            type: integer
+            example:
+              - 99
+              - 99
+              - 99
+              - 99
+              - 99
+              - 99
+              - 99
+        Size:
+          type: integer
+          example: 20
+        Direction:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+          description: |
+            dictionary:
+              * 0 -> "undefined"
+              * 1 -> "approaching"
+              * 3 -> "moving away"
+        VehicleType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+          description: |
+            dictionary:
+              * 0 -> "undefined"
+              * 1 -> "car"
+              * 2 -> "motorcycle"
+              * 3 -> "truck"
+              * 4 -> "van"
+              * 5 -> "bus"
+        VehicleFiab:
+          type: integer
+          example: 99
+        Make:
+          type: string
+          example: Audi
+        Model:
+          type: string
+          example: A3
+        ColorInt:
+          type: integer
+          example: 0
+        Color:
+          type: string
+          example: Black
+        Speed:
+          type: integer
+          example: 100
+        Acceleration:
+          type: number
+          example: 10.5
+        ImageCrop:
+          type: string
+          format: byte
+          example: base64string
+          description: >-
+            This is a base64 encoded string of the image's binary data. It is
+            expected that the BinaryImage field is populated with the physical
+            image.
+        ImageOCR:
+          type: string
+          format: byte
+          example: base64string
+          description: >-
+            This is a base64 encoded string of the image's binary data. It is
+            expected that the BinaryImage field is populated with the physical
+            image.
+        ImagesColor:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImageColor'
+        VideoColor:
+          type: string
+          format: byte
+          example: base64string
+          description: This is a base64 encoded string of the video's binary data.
+      xml:
+        name: transit
+    
+    Images:  
+      type: object
+      properties:
+        ImageCrop:
+          type: string
+          format: byte
+          example: base64string
+          description: >-
+            This is a base64 encoded string of the image's binary data. It is
+            expected that the BinaryImage field is populated with the physical
+            image.
+        ImageOCR:
+          type: string
+          format: byte
+          example: base64string
+          description: >-
+            This is a base64 encoded string of the image's binary data. It is
+            expected that the BinaryImage field is populated with the physical
+            image.
+        ImageColor:
+          type: string
+          format: byte
+          example: base64string
+          description: >-
+            This is a base64 encoded string of the image's binary data. It is
+            expected that the BinaryImage field is populated with the physical
+            image.
+        VideoColor:
+          type: string
+          format: byte
+          example: base64string
+          description: This is a base64 encoded string of the video's binary data.
+      xml:
+        name: ImageColor
+    
+    ImageColor:
+      required:
+        - IMG_Index
+        - IMG_Color
+      type: object
+      properties:
+        IMG_Index:
+          type: integer
+          example: 0
+        IMG_Color:
+          type: string
+          format: byte
+          example: base64string
+          description: >-
+            This is a base64 encoded string of the image's binary data. It is
+            expected that the BinaryImage field is populated with the physical
+            image.
+      xml:
+        name: ImageColor
+    
+    ByLongIDTransit:
+      required:
+        - LongIDTransit
+      type: object
+      properties:
+        LongIDTransit:
+          type: integer
+          format: int64
+          example: 123456789
+        ImageType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+          description: |
+            dictionary:
+              * 0 -> "None"
+              * 1 -> "OCR"
+              * 2 -> "CROP"
+              * 3 -> "OCR + CROP"
+              * 4 -> "Color"
+              * 5 -> "Color + OCR"
+              * 6 -> "Color + CROP"
+              * 7 -> "Color + OCR + CROP"
+              * 8 -> "Video"
+              * 9 -> "All"
+      xml:
+        name: ByLongIDTransit
+    
+    ByLongIDTransits:
+      required:
+        - LongIDTransitFrom
+        - LongIDTransitTo
+      type: object
+      properties:
+        LongIDTransitFrom:
+          type: integer
+          format: int64
+          example: 123456789
+        LongIDTransitTo:
+          type: integer
+          format: int64
+          example: 1234567890
+        ImageType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+          description: |
+            dictionary:
+              * 0 -> "None"
+              * 1 -> "OCR"
+              * 2 -> "CROP"
+              * 3 -> "OCR + CROP"
+              * 4 -> "Color"
+              * 5 -> "Color + OCR"
+              * 6 -> "Color + CROP"
+              * 7 -> "Color + OCR + CROP"
+              * 8 -> "Video"
+              * 9 -> "All"
+      xml:
+        name: ByLongIDTransits
+    
+    ByTimeStamp:
+      required:
+        - TimeStampFrom
+        - TimeStampTo
+      type: object
+      properties:
+        TimeStampFrom:
+          type: string
+          example: "2019/03/11 12:35:00"
+        TimeStampTo:
+          type: string
+          example: "2019/03/11 12:40:00"
+        ImageType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+          description: |
+            dictionary:
+              * 0 -> "None"
+              * 1 -> "OCR"
+              * 2 -> "CROP"
+              * 3 -> "OCR + CROP"
+              * 4 -> "Color"
+              * 5 -> "Color + OCR"
+              * 6 -> "Color + CROP"
+              * 7 -> "Color + OCR + CROP"
+              * 8 -> "Video"
+              * 9 -> "All"
+      xml:
+        name: ByTimeStamp
+    
+    ByPlate:
+      required:
+        - TimeStampFrom
+        - TimeStampTo
+      type: object
+      properties:
+        Plate:
+          type: string
+          example: "2541GVG"
+        ImageType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+          description: |
+            dictionary:
+              * 0 -> "None"
+              * 1 -> "OCR"
+              * 2 -> "CROP"
+              * 3 -> "OCR + CROP"
+              * 4 -> "Color"
+              * 5 -> "Color + OCR"
+              * 6 -> "Color + CROP"
+              * 7 -> "Color + OCR + CROP"
+              * 8 -> "Video"
+              * 9 -> "All"
+      xml:
+        name: ByPlate    
+    
+    TransitImages:
+      required:
+        - LongIdTransit
+      type: object
+      properties:
+        LongIDTransit:
+          type: integer
+          format: int64
+          example: 123456789
+        ImageType:
+          type: integer
+          enum:
+            - 0
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+            - 6
+            - 7
+            - 8
+            - 9
+          description: |
+            dictionary:
+              * 0 -> "None"
+              * 1 -> "OCR"
+              * 2 -> "CROP"
+              * 3 -> "OCR + CROP"
+              * 4 -> "Color"
+              * 5 -> "Color + OCR"
+              * 6 -> "Color + CROP"
+              * 7 -> "Color + OCR + CROP"
+              * 8 -> "Video"
+              * 9 -> "All"
+        Images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Images'
+      xml:
+        name: transitImages
+    
+    SWtrigger:
+      required:
+        - TriggerID
+        - LaneNumber
+        - TimeStamp
+      type: object
+      properties:
+        TriggerID:
+          type: integer
+          format: int64
+          example: 123456789
+        LaneNumber:
+          type: integer
+          example: 1
+        TimeStamp:
+          type: integer
+          example: -1000
+      xml:
+        name: SWtrigger
+    
+    SWtriggerReply:
+      required:
+        - TriggerID
+      type: object
+      properties:
+        TriggerID:
+          type: integer
+          format: int64
+          example: 123456789
+        LaneNumber:
+          type: integer
+          example: 1
+        TimeStamp:
+          type: integer
+          example: -1000
+      xml:
+        name: SWtrigger
+    
+    OutputChange:
+      required:
+        - Output
+        - Value
+        - TimeSpan
+      type: object
+      properties:
+        Output:
+          type: integer
+          example: 0
+        Value:
+          type: integer
+          enum:
+            - 0
+            - 1
+          description: |
+            dictionary:
+              * 0 -> "OFF"
+              * 1 -> "ON"
+        TimeSpan:
+          type: integer
+          example: 1000
+      xml:
+        name: OutputChange
